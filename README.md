@@ -13,6 +13,33 @@ authorization, quiz workflows, scoring, timing, and SQL persistence.
 > interface, Java backend, JDBC persistence, role-based access control,
 > quiz approval workflow, timed attempts, and result reporting.
 
+## Live Application
+
+**Live Website:** https://quiz-platform-virginia.onrender.com
+
+### Evaluation access
+
+This repository is public, so passwords, setup tokens, database URLs, and other
+secrets are intentionally **not** stored in source control.
+
+- **Quiz Creator / Participant:** evaluators can create a normal account from
+  the application and test the corresponding workflow.
+- **Administrator:** the Admin account is already configured on the hosted
+  application. Its credentials should be supplied only in the evaluator-only
+  submission material (for example, the submitted report/PPT or private
+  submission notes), not in this public README.
+
+For a complete evaluation, the recommended flow is:
+
+1. Open the live website.
+2. Sign in as Administrator using the credentials supplied with the private
+   evaluation material and review users/quizzes/results.
+3. Create or sign in to a Quiz Creator account, create a quiz, and submit it
+   for approval.
+4. Approve the quiz as Administrator.
+5. Create or sign in to a Participant account, attempt the approved quiz, and
+   review the saved result.
+
 ------------------------------------------------------------------------
 
 ## Table of Contents
@@ -1032,7 +1059,7 @@ existing PostgreSQL database URL.
 After deployment, replace the placeholder below with the actual public
 address:
 
-**Live Application:** `ADD-LIVE-URL-HERE`
+**Live Application:** https://quiz-platform-virginia.onrender.com
 
 ------------------------------------------------------------------------
 
@@ -1155,7 +1182,7 @@ Before submitting the GitHub link:
 -   Ensure the repository is public if required by the evaluator.
 -   Confirm `README.md` appears on the repository home page.
 -   Add the `docs/screenshots/` directory supplied with this README.
--   Replace `ADD-LIVE-URL-HERE` after deployment.
+-   Confirm the live Render URL in this README is reachable.
 -   Verify `.env` and database secrets are not committed.
 -   Verify the application can be started from the documented commands.
 -   Test the public repository from a clean clone if possible.
