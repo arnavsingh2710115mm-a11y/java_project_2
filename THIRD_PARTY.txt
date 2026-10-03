@@ -1,0 +1,12 @@
+H2 Database Engine 2.3.232
+Copyright H2 Group. All rights reserved.
+Project: https://h2database.com/
+Source: https://github.com/h2database/h2database/tree/version-2.3.232
+Binary: https://repo.maven.apache.org/maven2/com/h2database/h2/2.3.232/h2-2.3.232.jar
+H2 is distributed under the Mozilla Public License 2.0 or Eclipse Public License 1.0.
+See lib/H2-LICENSE.txt for the upstream license notice and license links.
+The H2 binary is unmodified. The application source is in src/quiz.
+
+Web edition: PostgreSQL JDBC driver 42.7.13
+Source: https://jdbc.postgresql.org/download/
+License: BSD 2-Clause, bundled in the driver's META-INF/LICENSE.

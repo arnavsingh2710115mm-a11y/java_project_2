@@ -1,0 +1,16 @@
+# Creates the Java web service only. Connect an existing persistent PostgreSQL database.
+# Review the selected hosting plan before deploying. This template uses free web compute.
+services:
+  - type: web
+    name: java-quiz-platform
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: QUIZ_PRODUCTION
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: QUIZ_SETUP_TOKEN
+        generateValue: true

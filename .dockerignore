@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+data
+build
+build-web
+test
+*.zip
+*.log
+QuizPlatform.jar
