@@ -197,46 +197,28 @@ results they are permitted to access, principally their own attempts.
 
 ### Permission Summary
 
-  ----------------------------------------------------------------------------
-  Feature                 Admin           Quiz Creator         Participant
-  ---------------- ------------------- ------------------- -------------------
-  Login                    Yes                 Yes                 Yes
+The table below shows what each role is allowed to do in the platform.
 
-  View                     Yes                 Yes                 Yes
-  role-specific                                            
-  dashboard                                                
+| Feature | Admin | Quiz Creator | Participant |
+|---|:---:|:---:|:---:|
+| Sign in to the platform | Yes | Yes | Yes |
+| View a role-specific dashboard | Yes | Yes | Yes |
+| Manage user accounts | Yes | No | No |
+| Create quizzes | Yes | Yes | No |
+| Edit quizzes they are allowed to manage | Yes | Yes | No |
+| Submit quizzes for approval | Yes, where applicable | Yes | No |
+| Approve or reject submitted quizzes | Yes | No | No |
+| View approved quizzes | Yes, for management | Yes, for management | Yes, for attempting |
+| Attempt quizzes | No, not through the normal participant flow | No, not through the normal participant flow | Yes |
+| View all platform results | Yes | No | No |
+| View results for quizzes they created | Yes | Yes | No |
+| View their own attempt history | If applicable | If applicable | Yes |
 
-  Manage users             Yes                 No                  No
+**In short:**
 
-  Create quizzes           Yes                 Yes                 No
-
-  Edit permitted           Yes                 Yes                 No
-  quizzes                                                  
-
-  Submit quiz for       Yes/where              Yes                 No
-  approval             applicable                          
-
-  Approve/reject           Yes                 No                  No
-  quiz                                                     
-
-  View approved      Management view     Management view           Yes
-  quizzes for                                              
-  attempting                                               
-
-  Attempt quiz          No normal           No normal              Yes
-                       participant         participant     
-                        workflow            workflow       
-
-  View all                 Yes                 No                  No
-  platform results                                         
-
-  View results for         Yes                 Yes                 No
-  creator's own                                            
-  quizzes                                                  
-
-  View own attempt    As authorized       As authorized            Yes
-  history                                                  
-  ----------------------------------------------------------------------------
+- **Admin** manages users, reviews quizzes, and can see platform-wide results.
+- **Quiz Creator** creates quizzes, submits them for approval, and can view results for their own quizzes.
+- **Participant** attempts approved quizzes and reviews their own results.
 
 ------------------------------------------------------------------------
 
