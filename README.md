@@ -19,28 +19,29 @@ authorization, quiz workflows, scoring, timing, and SQL persistence.
 
 ### Evaluation login details
 
-Use the following account to sign in to the live website. The application uses
+Use the following accounts to sign in to the live website. The application uses
 an email address as the username. Passwords are case-sensitive.
 
 | Role | Username / Email | Password |
 |---|---|---|
 | Administrator | `admin@admin.com` | `admin@4132` |
+| Quiz Creator | `creator@creator.com` | `creator@4132` |
+| Participant | `participant@participant.com` | `participant@4132` |
 
 The Administrator account provides access to user management, quiz approval,
 and all participant results.
 
-Quiz Creator and Participant login details will be added once their exact
-credentials are supplied. Evaluators can also register those roles through
-the application.
+The Quiz Creator account can create quizzes and submit them for approval.
+The Participant account can attempt approved quizzes and view its own results.
 
 For a complete evaluation, follow these steps:
 
 1. Open the live website and sign in with the Administrator credentials above.
 2. Review users, quizzes, and results.
-3. Sign out, then sign in to or register a Quiz Creator account.
+3. Sign out, then sign in with the Quiz Creator credentials above.
 4. Create a quiz and submit it for approval.
 5. Sign in as Administrator and approve the quiz.
-6. Sign out, then sign in to or register a Participant account.
+6. Sign out, then sign in with the Participant credentials above.
 7. Attempt the approved quiz and review the saved result.
 
 **Switching roles:** open the account menu and sign out before signing in with
