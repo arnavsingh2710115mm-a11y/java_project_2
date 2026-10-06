@@ -17,28 +17,34 @@ authorization, quiz workflows, scoring, timing, and SQL persistence.
 
 **Live Website:** https://quiz-platform-virginia.onrender.com
 
-### Evaluation access
+### Evaluation login details
 
-This repository is public, so passwords, setup tokens, database URLs, and other
-secrets are intentionally **not** stored in source control.
+Use the following account to sign in to the live website. The application uses
+an email address as the username. Passwords are case-sensitive.
 
-- **Quiz Creator / Participant:** evaluators can create a normal account from
-  the application and test the corresponding workflow.
-- **Administrator:** the Admin account is already configured on the hosted
-  application. Its credentials should be supplied only in the evaluator-only
-  submission material (for example, the submitted report/PPT or private
-  submission notes), not in this public README.
+| Role | Username / Email | Password |
+|---|---|---|
+| Administrator | `admin@admin.com` | `admin@4132` |
 
-For a complete evaluation, the recommended flow is:
+The Administrator account provides access to user management, quiz approval,
+and all participant results.
 
-1. Open the live website.
-2. Sign in as Administrator using the credentials supplied with the private
-   evaluation material and review users/quizzes/results.
-3. Create or sign in to a Quiz Creator account, create a quiz, and submit it
-   for approval.
-4. Approve the quiz as Administrator.
-5. Create or sign in to a Participant account, attempt the approved quiz, and
-   review the saved result.
+Quiz Creator and Participant login details will be added once their exact
+credentials are supplied. Evaluators can also register those roles through
+the application.
+
+For a complete evaluation, follow these steps:
+
+1. Open the live website and sign in with the Administrator credentials above.
+2. Review users, quizzes, and results.
+3. Sign out, then sign in to or register a Quiz Creator account.
+4. Create a quiz and submit it for approval.
+5. Sign in as Administrator and approve the quiz.
+6. Sign out, then sign in to or register a Participant account.
+7. Attempt the approved quiz and review the saved result.
+
+**Switching roles:** open the account menu and sign out before signing in with
+another account. If the website opens an existing dashboard, sign out first.
 
 ------------------------------------------------------------------------
 
@@ -993,8 +999,8 @@ For hosted production, configure a secure `QUIZ_SETUP_TOKEN` of at least
 After the first administrator has been created, normal accounts can be
 created according to the application's role rules.
 
-Do **not** publish real passwords or setup tokens in this README or in
-source control.
+The hosted evaluation login is listed under **Evaluation login details**.
+Keep personal account passwords and setup tokens out of source control.
 
 ------------------------------------------------------------------------
 
@@ -1053,7 +1059,8 @@ Because this repository may be submitted publicly:
 -   Never commit a real `DATABASE_URL`.
 -   Never commit database usernames/passwords.
 -   Never publish `QUIZ_SETUP_TOKEN`.
--   Never publish real user passwords.
+-   Keep personal user passwords private; the listed evaluation login is
+    intentionally shared for project assessment.
 -   Do not commit the local `data/` database directory.
 -   Keep generated build directories and logs out of Git.
 
