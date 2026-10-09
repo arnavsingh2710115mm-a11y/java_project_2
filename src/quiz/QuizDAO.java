@@ -4,21 +4,21 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class QuizDAO implements Repository<Quiz> {
+public class QuizDAO implements DatabaseOperations<Quiz> {
     @Override public List<Quiz> findAll(User viewer) throws SQLException {
         String sql = "SELECT * FROM quizzes";
         if (viewer.getRole().equals("Creator")) sql += " WHERE creator_id=?";
         if (viewer.getRole().equals("Participant")) sql += " WHERE status='Approved'";
         sql += " ORDER BY id DESC";
         List<Quiz> quizzes = new ArrayList<>();
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement(sql)) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement(sql)) {
             if (viewer.getRole().equals("Creator")) p.setInt(1, viewer.getId());
             try (ResultSet r = p.executeQuery()) { while (r.next()) quizzes.add(read(r)); }
         }
         return quizzes;
     }
     public Quiz load(User viewer, int id) throws SQLException, QuizNotFoundException {
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT * FROM quizzes WHERE id=?")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM quizzes WHERE id=?")) {
             p.setInt(1, id);
             Quiz quiz;
             try (ResultSet r = p.executeQuery()) {
@@ -40,7 +40,7 @@ public class QuizDAO implements Repository<Quiz> {
             return quiz;
         }
     }
-    public void save(User actor, Quiz quiz) throws SQLException, QuizNotFoundException {
+    @Override public void save(User actor, Quiz quiz) throws SQLException, QuizNotFoundException {
         if (actor.getRole().equals("Participant")) throw new IllegalArgumentException("Creator or Admin access required.");
         if (quiz.id != 0) requireOwner(actor, load(actor, quiz.id));
         if (quiz.title.trim().isEmpty() || quiz.title.trim().length() > 150
@@ -49,7 +49,7 @@ public class QuizDAO implements Repository<Quiz> {
         if (quiz.durationSeconds < 10 || quiz.durationSeconds > 7200)
             throw new IllegalArgumentException("Duration must be 10 to 7200 seconds.");
         int savedId = quiz.id;
-        try (Connection c = Database.connect()) {
+        try (Connection c = DatabaseConnection.getConnection()) {
             c.setAutoCommit(false);
             try {
                 if (savedId == 0) {
@@ -84,6 +84,10 @@ public class QuizDAO implements Repository<Quiz> {
             }
         }
     }
+    @Override public void update(User actor, Quiz quiz) throws SQLException, QuizNotFoundException {
+        if (quiz.id <= 0) throw new IllegalArgumentException("Save a new quiz before updating it.");
+        save(actor, quiz);
+    }
     public void submit(User actor, int id) throws SQLException, QuizNotFoundException {
         Quiz quiz = load(actor, id); requireOwner(actor, quiz);
         if (quiz.questions.isEmpty()) throw new IllegalArgumentException("Add at least one question before submitting.");
@@ -100,13 +104,13 @@ public class QuizDAO implements Repository<Quiz> {
         changeStatus(id, approve ? "Approved" : "Rejected", note);
     }
     private void changeStatus(int id, String status, String note) throws SQLException {
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("UPDATE quizzes SET status=?,review_note=? WHERE id=?")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE quizzes SET status=?,review_note=? WHERE id=?")) {
             p.setString(1, status); p.setString(2, note); p.setInt(3, id); p.executeUpdate();
         }
     }
-    public void delete(User actor, int id) throws SQLException, QuizNotFoundException {
+    @Override public void delete(User actor, int id) throws SQLException, QuizNotFoundException {
         requireOwner(actor, load(actor, id));
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("DELETE FROM quizzes WHERE id=?")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("DELETE FROM quizzes WHERE id=?")) {
             p.setInt(1, id); p.executeUpdate();
         }
     }

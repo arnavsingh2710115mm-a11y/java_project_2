@@ -9,7 +9,7 @@ public class ResultDAO implements Repository<Attempt> {
     public int save(User participant, Quiz quiz, Map<Integer, Integer> answers, int timeUsed) throws SQLException {
         if (!participant.getRole().equals("Participant")) throw new IllegalArgumentException("Participant access required.");
         if (quiz.questions.isEmpty()) throw new IllegalArgumentException("An empty quiz cannot be submitted.");
-        try (Connection c = Database.connect()) {
+        try (Connection c = DatabaseConnection.getConnection()) {
             c.setAutoCommit(false);
             try {
                 int id = saveInTransaction(c, participant, quiz, answers, timeUsed);
@@ -45,7 +45,7 @@ public class ResultDAO implements Repository<Attempt> {
         if (viewer.getRole().equals("Creator")) sql += " WHERE q.creator_id=?";
         sql += " ORDER BY a.id DESC";
         List<Attempt> attempts = new ArrayList<>();
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement(sql)) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement(sql)) {
             if (!viewer.getRole().equals("Admin")) p.setInt(1, viewer.getId());
             try (ResultSet r = p.executeQuery()) {
                 while (r.next()) attempts.add(new Attempt(r.getInt("id"), r.getString("name"), r.getString("quiz_title"),
@@ -63,7 +63,7 @@ public class ResultDAO implements Repository<Attempt> {
             .append("\nScore: ").append(attempt.score).append(" / ").append(attempt.total)
             .append(String.format(" (%.1f%%)", attempt.percentage())).append("\nTime used: ")
             .append(attempt.seconds).append(" seconds\nSubmitted: ").append(attempt.finishedAt).append("\n\n");
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT * FROM answers WHERE attempt_id=? ORDER BY position")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM answers WHERE attempt_id=? ORDER BY position")) {
             p.setInt(1, id);
             try (ResultSet r = p.executeQuery()) {
                 while (r.next()) {

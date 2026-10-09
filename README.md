@@ -692,14 +692,26 @@ appears on **My account** in the web app and in the desktop name/role tooltip.
 
 ## Interfaces and Generics
 
-`Repository<T>` is a custom generic repository interface implemented by
-DAO classes.
+`Repository<T>` is a custom generic read interface implemented by DAO
+classes. `DatabaseOperations<T>` extends it with `save()`, `update()`, and
+`delete()`. `QuizDAO` implements `DatabaseOperations<Quiz>`, and the web
+routes and desktop editor call CRUD methods through that interface reference.
+
+`DataRepository<T>` is a custom generic class backed by a
+`HashMap<Integer, T>`. The desktop user table uses `DataRepository<User>`
+to find a selected account by ID, and web reports use
+`DataRepository<Attempt>` to find a result from the current user's allowed
+results. JDBC remains the persistent data store.
 
 Collections used in the project include:
 
 -   `List<Question>`
 -   `Set<String>`
 -   `Map<Integer, Integer>`
+
+`Question` uses a `HashSet<String>` to reject duplicate answer options
+after trimming whitespace and ignoring case. This validation applies to
+both the desktop and web editors.
 
 ## Exception Handling
 
@@ -719,13 +731,18 @@ The project includes concurrency in both editions.
 The desktop quiz uses a countdown thread, while synchronized
 `QuizSession` methods coordinate answer and completion state.
 
-The web server uses a request thread pool and a scheduled executor for
-expired attempts. Web attempt operations also contain
-synchronization/transaction protection.
+The web server uses a request thread pool. `QuizMaintenanceService`
+implements `Runnable` and runs every second on a scheduled background
+thread to submit expired attempts, even when the participant closes the
+quiz page. Synchronized `WebStore` methods coordinate shared attempt
+updates, and database row locks protect simultaneous submissions.
 
 ## JDBC CRUD Operations
 
-DAO classes perform database operations for users, quizzes, and results.
+`DatabaseConnection.getConnection()` uses `DriverManager` to return a
+JDBC `Connection`. The bundled drivers support PostgreSQL for the hosted
+app and H2 for local runs and tests. `Database` initializes the schema.
+DAO classes persist users, quizzes, and results in the database.
 
 CRUD operations are supported where appropriate:
 
@@ -744,11 +761,12 @@ normal SQL operations by blindly concatenating user input.
 
 ## Transaction Management
 
-Important multi-step writes use SQL transactions.
-
-For example, saving an attempt and its answers is treated as one logical
-operation. If a required SQL operation fails, the transaction can be
-rolled back instead of leaving a partially saved result.
+`QuizDAO.save()`, `ResultDAO.save()`, and web attempt creation and
+submission use `setAutoCommit(false)`, `commit()`, and explicit
+`rollback()` on failure. Saving quiz details and questions, or an attempt
+and its answers, is treated as one logical operation. Tests cause a real
+SQL constraint failure after an earlier write and verify that the
+transaction restores the original records.
 
 ------------------------------------------------------------------------
 
@@ -761,7 +779,10 @@ QuizPlatform/
 │   └── quiz/
 │       ├── Attempt.java
 │       ├── Dashboard.java
+│       ├── DataRepository.java
 │       ├── Database.java
+│       ├── DatabaseConnection.java
+│       ├── DatabaseOperations.java
 │       ├── Json.java
 │       ├── LoginWindow.java
 │       ├── Main.java
@@ -770,6 +791,7 @@ QuizPlatform/
 │       ├── Quiz.java
 │       ├── QuizDAO.java
 │       ├── QuizEditor.java
+│       ├── QuizMaintenanceService.java
 │       ├── QuizNotFoundException.java
 │       ├── QuizSession.java
 │       ├── QuizWindow.java
@@ -829,9 +851,17 @@ QuizPlatform/
                                       views, saved answers, timing, and
                                       result-report support
 
-  `Database.java`                     JDBC connections, local H2 / hosted
-                                      PostgreSQL configuration, and
-                                      database initialization
+  `Database.java`                     Schema initialization and the
+                                      existing connection helper
+
+  `DatabaseConnection.java`           DriverManager connections for
+                                      local H2 and hosted PostgreSQL
+
+  `DatabaseOperations.java`           Generic CRUD interface implemented
+                                      by QuizDAO and used by callers
+
+  `DataRepository.java`               Generic HashMap index for user and
+                                      result lookups by ID
 
   `UserDAO.java`                      User persistence, account
                                       operations, and login-related
@@ -856,6 +886,9 @@ QuizPlatform/
 
   `QuizSession.java`                  Synchronized desktop attempt/timer
                                       state
+
+  `QuizMaintenanceService.java`       Runnable background task that
+                                      submits expired web attempts
 
   `Json.java`                         Lightweight JSON encoding/decoding
                                       used by the web application
@@ -1102,10 +1135,12 @@ for this build:
 
 -   Java sources compiled with Java 17.
 -   39 backend checks passed for the original Review 1 implementation.
--   All 53 current backend checks passed after adding role permissions
-    and the custom checked quiz exception.
--   25 local HTTP checks passed for permission payloads, missing-quiz
-    responses, and the create/approve/attempt/result workflow.
+-   All 69 current backend checks passed, including JDBC connectivity,
+    interface CRUD, generic ID lookups, duplicate-option validation,
+    transaction rollback, and concurrent background/manual submission.
+-   40 local HTTP checks passed for permission payloads, missing-quiz
+    responses, CRUD and approval, result access, and background expiry
+    without an open attempt page.
 -   Account-page markup checks verified role permissions and HTML escaping.
 -   File-backed persistence was tested across application restarts.
 -   Desktop quiz timing and result-saving behavior were tested.

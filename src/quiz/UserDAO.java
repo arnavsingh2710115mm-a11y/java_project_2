@@ -7,7 +7,7 @@ import java.util.Locale;
 
 public class UserDAO implements Repository<User> {
     public boolean needsSetup() throws SQLException {
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM users"); ResultSet r = p.executeQuery()) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM users"); ResultSet r = p.executeQuery()) {
             r.next();
             return r.getInt(1) == 0;
         }
@@ -36,7 +36,7 @@ public class UserDAO implements Repository<User> {
         validate(name, email, role);
         if (password.length() < 8) throw new IllegalArgumentException("Use a password with at least 8 characters.");
         email = email.trim().toLowerCase(Locale.ROOT);
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement(
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement(
                 "INSERT INTO users(name,email,password_hash,role) VALUES(?,?,?,?)", Statement.RETURN_GENERATED_KEYS)) {
             p.setString(1, name.trim()); p.setString(2, email);
             p.setString(3, Passwords.hash(password)); p.setString(4, role);
@@ -48,7 +48,7 @@ public class UserDAO implements Repository<User> {
         }
     }
     public User login(String email, String password) throws SQLException {
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT * FROM users WHERE email=?")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM users WHERE email=?")) {
             p.setString(1, email.trim().toLowerCase(Locale.ROOT));
             try (ResultSet r = p.executeQuery()) {
                 if (r.next() && Passwords.matches(password, r.getString("password_hash"))) return read(r);
@@ -59,7 +59,7 @@ public class UserDAO implements Repository<User> {
     @Override public List<User> findAll(User viewer) throws SQLException {
         requireAdmin(viewer);
         List<User> users = new ArrayList<>();
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT * FROM users ORDER BY id"); ResultSet r = p.executeQuery()) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM users ORDER BY id"); ResultSet r = p.executeQuery()) {
             while (r.next()) users.add(read(r));
         }
         return users;
@@ -68,7 +68,7 @@ public class UserDAO implements Repository<User> {
         requireAdmin(admin); validate(name, email, role);
         if (id == admin.getId() && !role.equals("Admin"))
             throw new IllegalArgumentException("You cannot remove your own admin role.");
-        try (Connection c = Database.connect()) {
+        try (Connection c = DatabaseConnection.getConnection()) {
             // A creator with existing quizzes must remain a creator or admin.
             try (PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM quizzes WHERE creator_id=?")) {
                 p.setInt(1, id);
@@ -87,7 +87,7 @@ public class UserDAO implements Repository<User> {
     public void delete(User admin, int id) throws SQLException {
         requireAdmin(admin);
         if (id == admin.getId()) throw new IllegalArgumentException("You cannot delete the account you are using.");
-        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("DELETE FROM users WHERE id=?")) {
+        try (Connection c = DatabaseConnection.getConnection(); PreparedStatement p = c.prepareStatement("DELETE FROM users WHERE id=?")) {
             p.setInt(1, id); p.executeUpdate();
         }
     }

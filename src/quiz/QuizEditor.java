@@ -4,6 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 
 public class QuizEditor extends JDialog {
+    private final DatabaseOperations<Quiz> quizzes = new QuizDAO();
     private final JTextField title = new JTextField();
     private final JTextField category = new JTextField();
     private final JSpinner duration = new JSpinner(new SpinnerNumberModel(120, 10, 7200, 10));
@@ -39,7 +40,8 @@ public class QuizEditor extends JDialog {
             quiz.durationSeconds = (Integer) duration.getValue();
             quiz.questions.clear();
             for (int i = 0; i < questions.size(); i++) quiz.questions.add(questions.get(i));
-            new QuizDAO().save(actor, quiz);
+            if (quiz.id == 0) quizzes.save(actor, quiz);
+            else quizzes.update(actor, quiz);
             saved = true; dispose();
         }));
         actions.add(UI.button("Cancel", () -> {

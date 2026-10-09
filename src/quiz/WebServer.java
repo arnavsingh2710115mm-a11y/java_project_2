@@ -14,6 +14,7 @@ import java.util.concurrent.*;
 public final class WebServer {
     private static final UserDAO users=new UserDAO();
     private static final QuizDAO quizzes=new QuizDAO();
+    private static final DatabaseOperations<Quiz> quizOperations=quizzes;
     private static final long SESSION_MS=12*60*60*1000L;
     private static final Map<String,Window> rateWindows=new ConcurrentHashMap<>();
     private static String setupKey;
@@ -37,8 +38,9 @@ public final class WebServer {
         ThreadPoolExecutor executor=new ThreadPoolExecutor(4,16,30,TimeUnit.SECONDS,new ArrayBlockingQueue<>(100),new ThreadPoolExecutor.CallerRunsPolicy());
         server.setExecutor(executor);server.start();
         ScheduledExecutorService scheduler=Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleWithFixedDelay(()->{try{WebStore.expire();}catch(Exception e){System.err.println("Attempt maintenance failed: "+e.getClass().getSimpleName());}},1,1,TimeUnit.SECONDS);
-        scheduler.scheduleWithFixedDelay(()->{try(Connection c=Database.connect();PreparedStatement p=c.prepareStatement("DELETE FROM web_sessions WHERE expires<?")){p.setLong(1,System.currentTimeMillis());p.executeUpdate();}catch(Exception e){System.err.println("Session cleanup failed.");}rateWindows.entrySet().removeIf(e->System.currentTimeMillis()-e.getValue().start>600000);},1,10,TimeUnit.MINUTES);
+        Runnable maintenance=new QuizMaintenanceService();
+        scheduler.scheduleWithFixedDelay(maintenance,1,1,TimeUnit.SECONDS);
+        scheduler.scheduleWithFixedDelay(()->{try(Connection c=DatabaseConnection.getConnection();PreparedStatement p=c.prepareStatement("DELETE FROM web_sessions WHERE expires<?")){p.setLong(1,System.currentTimeMillis());p.executeUpdate();}catch(Exception e){System.err.println("Session cleanup failed.");}rateWindows.entrySet().removeIf(e->System.currentTimeMillis()-e.getValue().start>600000);},1,10,TimeUnit.MINUTES);
         Runtime.getRuntime().addShutdownHook(new Thread(()->{server.stop(1);scheduler.shutdownNow();executor.shutdown();}));
         System.out.println("Quiz Platform web app: http://localhost:"+port);
     }
@@ -48,7 +50,7 @@ public final class WebServer {
         if(production())h.set("Strict-Transport-Security","max-age=31536000");
         try{
             String path=x.getRequestURI().getPath(),method=x.getRequestMethod();
-            if(path.equals("/health")){try(Connection c=Database.connect();Statement s=c.createStatement()){s.execute("SELECT 1");}json(x,200,Map.of("status","ok"));return;}
+            if(path.equals("/health")){try(Connection c=DatabaseConnection.getConnection();Statement s=c.createStatement()){s.execute("SELECT 1");}json(x,200,Map.of("status","ok"));return;}
             if(!path.startsWith("/api/")){staticFile(x,path);return;}
             if(!method.equals("GET")){
                 String origin=x.getRequestHeaders().getFirst("Origin");
@@ -82,20 +84,20 @@ public final class WebServer {
             if(path.equals("/api/logout")&&method.equals("POST")){deleteSession(x);json(x,200,Map.of("ok",true));return;}
             String[] parts=path.split("/");
             if(path.equals("/api/quizzes")&&method.equals("GET")){
-                List<Object> list=new ArrayList<>();for(Quiz q:quizzes.findAll(user)){
-                    Map<String,Object> item=WebStore.quiz(q,false);try(Connection c=Database.connect();PreparedStatement p=c.prepareStatement("SELECT COUNT(*) FROM questions WHERE quiz_id=?")){p.setInt(1,q.id);try(ResultSet r=p.executeQuery()){r.next();item.put("questionCount",r.getInt(1));}}
+                List<Object> list=new ArrayList<>();for(Quiz q:quizOperations.findAll(user)){
+                    Map<String,Object> item=WebStore.quiz(q,false);try(Connection c=DatabaseConnection.getConnection();PreparedStatement p=c.prepareStatement("SELECT COUNT(*) FROM questions WHERE quiz_id=?")){p.setInt(1,q.id);try(ResultSet r=p.executeQuery()){r.next();item.put("questionCount",r.getInt(1));}}
                     list.add(item);
                 }json(x,200,list);return;
             }
             if(path.equals("/api/quizzes")&&method.equals("POST")){
-                Map<String,Object> data=body(x);data.put("id",0);data.put("creatorId",user.getId());data.put("status","Draft");Quiz q=WebStore.decodeQuiz(data);quizzes.save(user,q);json(x,201,WebStore.quiz(q,true));return;
+                Map<String,Object> data=body(x);data.put("id",0);data.put("creatorId",user.getId());data.put("status","Draft");Quiz q=WebStore.decodeQuiz(data);quizOperations.save(user,q);json(x,201,WebStore.quiz(q,true));return;
             }
             if(parts.length>=4&&parts[2].equals("quizzes")){
                 int id=Integer.parseInt(parts[3]);
                 if(parts.length==4){
                     if(method.equals("GET")){json(x,200,WebStore.quiz(quizzes.load(user,id),!user.getRole().equals("Participant")));return;}
-                    if(method.equals("PUT")){WebStore.requireNoActiveQuiz(id);Map<String,Object> data=body(x);data.put("id",id);data.put("creatorId",user.getId());data.put("status","Draft");Quiz q=WebStore.decodeQuiz(data);quizzes.save(user,q);json(x,200,WebStore.quiz(q,true));return;}
-                    if(method.equals("DELETE")){WebStore.requireNoActiveQuiz(id);quizzes.delete(user,id);json(x,200,Map.of("ok",true));return;}
+                    if(method.equals("PUT")){WebStore.requireNoActiveQuiz(id);Map<String,Object> data=body(x);data.put("id",id);data.put("creatorId",user.getId());data.put("status","Draft");Quiz q=WebStore.decodeQuiz(data);quizOperations.update(user,q);json(x,200,WebStore.quiz(q,true));return;}
+                    if(method.equals("DELETE")){WebStore.requireNoActiveQuiz(id);quizOperations.delete(user,id);json(x,200,Map.of("ok",true));return;}
                 }
                 if(parts.length==5&&method.equals("POST")){
                     switch(parts[4]){
@@ -134,17 +136,17 @@ public final class WebServer {
     private static void validatePassword(Map<String,Object>d){String p=Json.string(d,"password");if(p.length()<8||p.length()>256)throw new IllegalArgumentException("Password must contain 8 to 256 characters.");}
     private static Session session(HttpExchange x)throws SQLException {
         String token=cookie(x);if(token==null)return null;
-        try(Connection c=Database.connect();PreparedStatement p=c.prepareStatement("SELECT user_id,csrf FROM web_sessions WHERE token_hash=? AND expires>?")){
+        try(Connection c=DatabaseConnection.getConnection();PreparedStatement p=c.prepareStatement("SELECT user_id,csrf FROM web_sessions WHERE token_hash=? AND expires>?")){
             p.setString(1,hash(token));p.setLong(2,System.currentTimeMillis());try(ResultSet r=p.executeQuery()){if(!r.next())return null;return new Session(WebStore.findUser(c,r.getInt(1)),r.getString(2));}
         }
     }
     private static Map<String,Object> loginSession(HttpExchange x,User user)throws SQLException {
         deleteSession(x);String token=random(),csrf=random();
-        try(Connection c=Database.connect();PreparedStatement p=c.prepareStatement("INSERT INTO web_sessions(token_hash,user_id,csrf,expires) VALUES(?,?,?,?)")){p.setString(1,hash(token));p.setInt(2,user.getId());p.setString(3,csrf);p.setLong(4,System.currentTimeMillis()+SESSION_MS);p.executeUpdate();}
+        try(Connection c=DatabaseConnection.getConnection();PreparedStatement p=c.prepareStatement("INSERT INTO web_sessions(token_hash,user_id,csrf,expires) VALUES(?,?,?,?)")){p.setString(1,hash(token));p.setInt(2,user.getId());p.setString(3,csrf);p.setLong(4,System.currentTimeMillis()+SESSION_MS);p.executeUpdate();}
         x.getResponseHeaders().set("Set-Cookie","quiz_session="+token+"; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200"+(production()?"; Secure":""));
         return Map.of("user",WebStore.user(user),"csrf",csrf);
     }
-    private static void deleteSession(HttpExchange x)throws SQLException {String token=cookie(x);if(token!=null)try(Connection c=Database.connect();PreparedStatement p=c.prepareStatement("DELETE FROM web_sessions WHERE token_hash=?")){p.setString(1,hash(token));p.executeUpdate();}x.getResponseHeaders().set("Set-Cookie","quiz_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"+(production()?"; Secure":""));}
+    private static void deleteSession(HttpExchange x)throws SQLException {String token=cookie(x);if(token!=null)try(Connection c=DatabaseConnection.getConnection();PreparedStatement p=c.prepareStatement("DELETE FROM web_sessions WHERE token_hash=?")){p.setString(1,hash(token));p.executeUpdate();}x.getResponseHeaders().set("Set-Cookie","quiz_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"+(production()?"; Secure":""));}
     private static String cookie(HttpExchange x){String header=x.getRequestHeaders().getFirst("Cookie");if(header==null)return null;for(String item:header.split(";")){String[]p=item.trim().split("=",2);if(p.length==2&&p[0].equals("quiz_session"))return p[1];}return null;}
     private static String publicUrl(){return System.getenv().getOrDefault("PUBLIC_URL",System.getenv().getOrDefault("RENDER_EXTERNAL_URL",""));}
     private static boolean production(){return Boolean.parseBoolean(System.getenv().getOrDefault("QUIZ_PRODUCTION","false"));}

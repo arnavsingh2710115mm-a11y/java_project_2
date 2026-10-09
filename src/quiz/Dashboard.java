@@ -11,6 +11,7 @@ import javax.swing.table.DefaultTableModel;
 public class Dashboard extends JFrame {
     private final User user;
     private final QuizDAO quizzes = new QuizDAO();
+    private final DatabaseOperations<Quiz> quizOperations = quizzes;
     private final UserDAO users = new UserDAO();
     private final ResultDAO results = new ResultDAO();
     private final DefaultTableModel quizModel = UI.model("ID", "Title", "Category", "Seconds", "Status", "Owner ID", "Review note");
@@ -23,7 +24,7 @@ public class Dashboard extends JFrame {
     private final JLabel quizHint = new JLabel();
     private final JLabel resultSummary = new JLabel();
     private List<Quiz> visibleQuizzes = new ArrayList<>();
-    private List<User> visibleUsers = new ArrayList<>();
+    private final DataRepository<User> visibleUsers = new DataRepository<>();
     private boolean refreshing;
 
     public Dashboard(User user) throws Exception {
@@ -79,7 +80,7 @@ public class Dashboard extends JFrame {
             actions.add(UI.button("Delete", () -> {
                 int id = selectedQuizId();
                 if (UI.confirm(this, "Delete this quiz and its questions? Quizzes with results are protected.")) {
-                    quizzes.delete(user, id); refresh();
+                    quizOperations.delete(user, id); refresh();
                 }
             }));
             quizHint.setText("Create > add questions > save draft > submit for approval > admin approves.");
@@ -91,9 +92,9 @@ public class Dashboard extends JFrame {
         JPanel panel = new JPanel(new BorderLayout()); panel.add(new JScrollPane(userTable), BorderLayout.CENTER);
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT));
         actions.add(UI.button("Add user", () -> userForm(null)));
-        actions.add(UI.button("Edit user", () -> userForm(visibleUsers.get(UI.selected(userTable)))));
+        actions.add(UI.button("Edit user", () -> userForm(selectedUser())));
         actions.add(UI.button("Delete user", () -> {
-            User selected = visibleUsers.get(UI.selected(userTable));
+            User selected = selectedUser();
             if (UI.confirm(this, "Delete " + selected.getName() + "? Accounts with quizzes or results are protected.")) {
                 users.delete(user, selected.getId()); refresh();
             }
@@ -112,7 +113,7 @@ public class Dashboard extends JFrame {
         actions.add(UI.button("Refresh", () -> refresh())); panel.add(actions, BorderLayout.SOUTH); return panel;
     }
     private void refresh() throws Exception {
-        visibleQuizzes = quizzes.findAll(user);
+        visibleQuizzes = quizOperations.findAll(user);
         String selected = (String) category.getSelectedItem();
         // A Set collects categories without duplicates and keeps the filter alphabetic.
         Set<String> categories = new TreeSet<>();
@@ -123,8 +124,11 @@ public class Dashboard extends JFrame {
         if (selected != null && categories.contains(selected)) category.setSelectedItem(selected);
         refreshing = false; fillQuizzes();
         if (user.getRole().equals("Admin")) {
-            visibleUsers = users.findAll(user); userModel.setRowCount(0);
-            for (User item : visibleUsers) userModel.addRow(new Object[]{item.getId(), item.getName(), item.getEmail(), item.getRole()});
+            visibleUsers.clear(); userModel.setRowCount(0);
+            for (User item : users.findAll(user)) {
+                visibleUsers.put(item.getId(), item);
+                userModel.addRow(new Object[]{item.getId(), item.getName(), item.getEmail(), item.getRole()});
+            }
         }
         List<Attempt> attempts = results.findAll(user); resultModel.setRowCount(0);
         int earned = 0; int possible = 0;
@@ -144,6 +148,12 @@ public class Dashboard extends JFrame {
         }
     }
     private int selectedQuizId() { return (Integer) quizModel.getValueAt(UI.selected(quizTable), 0); }
+    private User selectedUser() {
+        int id = (Integer) userModel.getValueAt(UI.selected(userTable), 0);
+        User selected = visibleUsers.findById(id);
+        if (selected == null) throw new IllegalArgumentException("Refresh the user list and select an account.");
+        return selected;
+    }
     private void edit(Quiz quiz) throws Exception {
         QuizEditor editor = new QuizEditor(this, user, quiz); editor.setVisible(true);
         if (editor.wasSaved()) refresh();
