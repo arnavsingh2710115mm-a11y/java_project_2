@@ -34,6 +34,7 @@ public class Dashboard extends JFrame {
         body.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         JPanel header = new JPanel(new BorderLayout());
         JLabel heading = new JLabel(user.getName() + "  |  " + user.getRole());
+        heading.setToolTipText(String.join("; ", user.getPermissions()));
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 23f)); header.add(heading, BorderLayout.WEST);
         header.add(UI.button("Log out", () -> { new LoginWindow().setVisible(true); dispose(); }), BorderLayout.EAST);
         body.add(header, BorderLayout.NORTH);

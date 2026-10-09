@@ -4,7 +4,7 @@ The supplied rubric is headed **Java GUI Based Projects Marking Rubric 1**. This
 
 | Requirement | Marks | Where it is implemented | How to demonstrate it |
 | --- | ---: | --- | --- |
-| OOP: polymorphism, inheritance, exception handling, interfaces | 10 | `User.java`: Admin, QuizCreator and Participant extend User and override `getRole()`. `Repository<T>` is implemented by the DAO classes. `UI.button` catches operation exceptions; DAOs use checked SQL exceptions and input validation. | Log in under different roles. Open User.java and the Repository implementations. Trigger an invalid input or duplicate email. |
+| OOP: polymorphism, inheritance, exception handling, interfaces | 10 | `User.java`: Admin, QuizCreator and Participant extend User and override `getRole()` and `getPermissions()`. `WebStore.user(User u)` and Dashboard call `getPermissions()` through a User reference. `QuizDAO.load()` throws the custom checked `QuizNotFoundException`; WebServer and `UI.button` catch it explicitly. `Repository<T>` is implemented by the DAO classes. | Log in under different roles and open My account to see permissions. Open User.java and WebStore.user. Request a deleted quiz to see the custom exception handled; the web API returns 404 and the desktop shows a warning. |
 | Collections and generics | 6 | `List<Question>` in Quiz; lists of users/quizzes/results in DAOs; `Set<String>` in Dashboard removes duplicate categories; `Map<Integer,Integer>` in QuizSession records answers; `Repository<T>` is a custom generic interface. | Add multiple quizzes in the same category and inspect the category filter. Show the quiz question list and session answers. |
 | Multithreading and synchronization | 4 | QuizWindow starts the `quiz-countdown` Thread. QuizSession's synchronized methods coordinate timer expiry and answer/submission state. Swing UI changes are dispatched with `SwingUtilities.invokeLater`. | Take a 10-second quiz, observe the countdown and automatic submission. The backend test also races two finish calls. |
 | Model classes and database operations | 7 | User, Quiz, Question and Attempt hold project data. UserDAO, QuizDAO and ResultDAO contain database operations. Database creates connections and initializes tables. | Show `database/schema.sql`, a model, then its DAO. |
@@ -21,19 +21,20 @@ The supplied rubric is headed **Java GUI Based Projects Marking Rubric 1**. This
 | QuizEditor.java | Edit quiz details and questions |
 | QuizWindow.java | Answer questions, countdown and result submission |
 | UI.java | Shared small Swing helpers and error display |
-| User.java | Common user data and the three role subclasses |
+| User.java | Common user data and role/permission behavior for the three subclasses |
 | Quiz.java | Quiz data and question list |
 | Question.java | Question, four options, correct option and explanation |
 | Attempt.java | A saved attempt summary |
 | Repository.java | Generic read interface implemented by DAOs |
 | UserDAO.java | Account CRUD and login |
 | QuizDAO.java | Quiz persistence and approval workflow |
+| QuizNotFoundException.java | Custom checked exception for missing or deleted quizzes |
 | ResultDAO.java | Transactional submissions and reports |
 | Database.java | JDBC connection and table initialization |
 | QuizSession.java | Synchronized in-progress answers and timing state |
 | Passwords.java | Salted password hashing and verification |
 
-There are 17 application Java files. User.java contains its three small role subclasses alongside the base class. All source uses one `quiz` package, ordinary loops, explicit JDBC and small data classes. There is no Spring, ORM, web framework or generic repository framework. Swing event callbacks use short Java lambdas.
+There are 21 application Java files. User.java contains its three small role subclasses alongside the base class. All source uses one `quiz` package, ordinary loops, explicit JDBC and small data classes. There is no Spring, ORM, web framework or generic repository framework. Swing event callbacks use short Java lambdas.
 
 ## Presentation route
 
@@ -51,7 +52,9 @@ This version prioritizes a working Review 1 core. It is still a real multi-class
 ## Checks completed for this build
 
 - Compiled the application for Java 17.
-- All 39 included backend checks passed.
+- All 53 included backend checks passed, including permissions through User references and custom exceptions for deleted quiz operations.
+- 25 local HTTP checks passed, covering role-specific permission payloads, HTTP 404 handling for missing quizzes, and the create/approve/attempt/result workflow.
+- Account-page markup checks confirmed each role's permissions render correctly and permission text is escaped.
 - A separate file-backed persistence check saved accounts, an approved quiz and a result, then reopened them successfully in a new JVM.
 - Swing GUI checks opened Admin's Inspect view, added a question and saved a new draft through the editor, selected an answer, and verified that timer expiry saved exactly one correctly scored result and opened its report.
 - Screenshots of the dashboard, inspection view, quiz window, editor and report were visually checked for layout issues.

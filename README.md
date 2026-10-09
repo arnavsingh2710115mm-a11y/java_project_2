@@ -684,7 +684,11 @@ role-specific behavior.
 ## Inheritance and Polymorphism
 
 The three account-role classes inherit from the common `User` model and
-override role behavior such as `getRole()`.
+override both `getRole()` and the abstract `getPermissions()` method.
+Each role returns an immutable list describing its permitted actions.
+`WebStore.user(User u)` calls `u.getPermissions()` through a `User` reference,
+so Java selects the appropriate role's implementation at runtime. The list
+appears on **My account** in the web app and in the desktop name/role tooltip.
 
 ## Interfaces and Generics
 
@@ -701,6 +705,12 @@ Collections used in the project include:
 
 The project validates user input and handles SQL/application failures
 rather than assuming every operation succeeds.
+
+`QuizNotFoundException extends Exception` is a custom checked exception.
+`QuizDAO.load()` throws it when the requested quiz does not exist; quiz
+save, submit, review, delete, and start operations propagate it. `WebServer`
+catches it explicitly and sends HTTP 404 with a helpful message. `UI.button`
+catches it explicitly and shows a **Quiz not found** warning in the desktop app.
 
 ## Multithreading and Synchronization
 
@@ -760,6 +770,7 @@ QuizPlatform/
 │       ├── Quiz.java
 │       ├── QuizDAO.java
 │       ├── QuizEditor.java
+│       ├── QuizNotFoundException.java
 │       ├── QuizSession.java
 │       ├── QuizWindow.java
 │       ├── Repository.java
@@ -1091,6 +1102,11 @@ for this build:
 
 -   Java sources compiled with Java 17.
 -   39 backend checks passed for the original Review 1 implementation.
+-   All 53 current backend checks passed after adding role permissions
+    and the custom checked quiz exception.
+-   25 local HTTP checks passed for permission payloads, missing-quiz
+    responses, and the create/approve/attempt/result workflow.
+-   Account-page markup checks verified role permissions and HTML escaping.
 -   File-backed persistence was tested across application restarts.
 -   Desktop quiz timing and result-saving behavior were tested.
 -   HTTP integration checks covered registration/login, role checks,

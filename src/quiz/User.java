@@ -1,5 +1,7 @@
 package quiz;
 
+import java.util.List;
+
 public abstract class User {
     private final int id;
     private final String name;
@@ -14,6 +16,7 @@ public abstract class User {
     public String getName() { return name; }
     public String getEmail() { return email; }
     public abstract String getRole();
+    public abstract List<String> getPermissions();
 
     public static User fromRole(int id, String name, String email, String role) {
         switch (role) {
@@ -25,16 +28,26 @@ public abstract class User {
     }
 }
 
-// Each kind of user supplies its own role through the same method.
+// Each kind of user supplies its own role and permissions through the same methods.
 class Admin extends User {
     public Admin(int id, String name, String email) { super(id, name, email); }
     @Override public String getRole() { return "Admin"; }
+    @Override public List<String> getPermissions() {
+        return List.of("Manage users", "Manage all quizzes", "Approve or reject quizzes",
+            "View all results");
+    }
 }
 class QuizCreator extends User {
     public QuizCreator(int id, String name, String email) { super(id, name, email); }
     @Override public String getRole() { return "Creator"; }
+    @Override public List<String> getPermissions() {
+        return List.of("Manage own quizzes", "Submit quizzes for approval", "View results for own quizzes");
+    }
 }
 class Participant extends User {
     public Participant(int id, String name, String email) { super(id, name, email); }
     @Override public String getRole() { return "Participant"; }
+    @Override public List<String> getPermissions() {
+        return List.of("Take approved quizzes", "View own results");
+    }
 }

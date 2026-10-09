@@ -17,12 +17,12 @@ public class QuizDAO implements Repository<Quiz> {
         }
         return quizzes;
     }
-    public Quiz load(User viewer, int id) throws SQLException {
+    public Quiz load(User viewer, int id) throws SQLException, QuizNotFoundException {
         try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("SELECT * FROM quizzes WHERE id=?")) {
             p.setInt(1, id);
             Quiz quiz;
             try (ResultSet r = p.executeQuery()) {
-                if (!r.next()) throw new IllegalArgumentException("Quiz no longer exists.");
+                if (!r.next()) throw new QuizNotFoundException(id);
                 quiz = read(r);
             }
             if (viewer.getRole().equals("Creator") && quiz.creatorId != viewer.getId())
@@ -40,7 +40,7 @@ public class QuizDAO implements Repository<Quiz> {
             return quiz;
         }
     }
-    public void save(User actor, Quiz quiz) throws SQLException {
+    public void save(User actor, Quiz quiz) throws SQLException, QuizNotFoundException {
         if (actor.getRole().equals("Participant")) throw new IllegalArgumentException("Creator or Admin access required.");
         if (quiz.id != 0) requireOwner(actor, load(actor, quiz.id));
         if (quiz.title.trim().isEmpty() || quiz.title.trim().length() > 150
@@ -84,14 +84,14 @@ public class QuizDAO implements Repository<Quiz> {
             }
         }
     }
-    public void submit(User actor, int id) throws SQLException {
+    public void submit(User actor, int id) throws SQLException, QuizNotFoundException {
         Quiz quiz = load(actor, id); requireOwner(actor, quiz);
         if (quiz.questions.isEmpty()) throw new IllegalArgumentException("Add at least one question before submitting.");
         if (!quiz.status.equals("Draft") && !quiz.status.equals("Rejected"))
             throw new IllegalArgumentException("Only draft or rejected quizzes can be submitted.");
         changeStatus(id, "Pending", "");
     }
-    public void review(User admin, int id, boolean approve, String note) throws SQLException {
+    public void review(User admin, int id, boolean approve, String note) throws SQLException, QuizNotFoundException {
         UserDAO.requireAdmin(admin);
         Quiz quiz = load(admin, id);
         if (!quiz.status.equals("Pending")) throw new IllegalArgumentException("Select a pending quiz to review.");
@@ -104,7 +104,7 @@ public class QuizDAO implements Repository<Quiz> {
             p.setString(1, status); p.setString(2, note); p.setInt(3, id); p.executeUpdate();
         }
     }
-    public void delete(User actor, int id) throws SQLException {
+    public void delete(User actor, int id) throws SQLException, QuizNotFoundException {
         requireOwner(actor, load(actor, id));
         try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement("DELETE FROM quizzes WHERE id=?")) {
             p.setInt(1, id); p.executeUpdate();

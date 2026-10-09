@@ -16,6 +16,14 @@ public class ProjectTest {
         try { action.run(); } catch (IllegalArgumentException | SQLException e) { check(true, message); return; }
         throw new AssertionError("Expected failure: " + message);
     }
+    private static void missingQuiz(Checked action, int quizId, String message) throws Exception {
+        try { action.run(); }
+        catch (QuizNotFoundException e) {
+            check(e.getMessage().contains("Quiz #" + quizId), message);
+            return;
+        }
+        throw new AssertionError("Expected QuizNotFoundException: " + message);
+    }
     private static int count(String table) throws Exception {
         try (Connection c = Database.connect(); Statement s = c.createStatement(); ResultSet r = s.executeQuery("SELECT COUNT(*) FROM " + table)) {
             r.next(); return r.getInt(1);
@@ -32,6 +40,20 @@ public class ProjectTest {
         User participant = users.register("Student", "student@example.com", "testpass1", "Participant");
         User other = users.register("Other Creator", "other@example.com", "testpass1", "Creator");
         User secondStudent = users.register("Student Two", "two@example.com", "testpass1", "Participant");
+        check(admin.getPermissions().equals(List.of("Manage users", "Manage all quizzes", "Approve or reject quizzes", "View all results")),
+            "admin permissions dispatch through a User reference");
+        check(creator.getPermissions().equals(List.of("Manage own quizzes", "Submit quizzes for approval", "View results for own quizzes")),
+            "creator permissions dispatch through a User reference");
+        check(participant.getPermissions().equals(List.of("Take approved quizzes", "View own results")),
+            "participant permissions dispatch through a User reference");
+        for (User roleUser : List.of(admin, creator, participant)) {
+            Map<String,Object> payload = Json.object(Json.parse(Json.write(WebStore.user(roleUser))));
+            check(payload.get("permissions").equals(roleUser.getPermissions()), roleUser.getRole() + " permissions reach the profile JSON");
+        }
+        try {
+            participant.getPermissions().add("Manage users");
+            throw new AssertionError("Permissions must be immutable.");
+        } catch (UnsupportedOperationException e) { check(true, "returned permissions cannot be modified"); }
         check(users.login("STUDENT@example.com", "testpass1").getId() == participant.getId(), "login and email normalization");
         fails(() -> users.login("student@example.com", "incorrect"), "wrong password rejected");
         fails(() -> users.register("Student", "student@example.com", "testpass1", "Participant"), "duplicate email rejected");
@@ -77,9 +99,17 @@ public class ProjectTest {
         Quiz disposable = new Quiz(0, creator.getId(), "Delete me", "Practice", 30, "Draft");
         disposable.questions.add(approved.questions.get(0)); quizzes.save(creator, disposable);
         quizzes.delete(creator, disposable.id);
+        missingQuiz(() -> quizzes.load(creator, disposable.id), disposable.id, "loading a deleted quiz throws the custom checked exception");
+        missingQuiz(() -> quizzes.save(creator, disposable), disposable.id, "saving a deleted quiz propagates the custom exception");
+        missingQuiz(() -> quizzes.submit(creator, disposable.id), disposable.id, "submitting a deleted quiz propagates the custom exception");
+        missingQuiz(() -> quizzes.review(admin, disposable.id, true, ""), disposable.id, "reviewing a deleted quiz propagates the custom exception");
+        missingQuiz(() -> quizzes.delete(creator, disposable.id), disposable.id, "deleting an already deleted quiz propagates the custom exception");
+        missingQuiz(() -> WebStore.start(participant, disposable.id), disposable.id, "starting a deleted quiz propagates the custom exception");
         check(quizzes.findAll(creator).size() == 1, "quiz deletion works for unused quiz");
         users.update(admin, other.getId(), "Renamed", "renamed@example.com", "Participant");
         check(users.login("renamed@example.com", "testpass1").getRole().equals("Participant"), "user update changes name, email and role");
+        check(users.login("renamed@example.com", "testpass1").getPermissions().equals(participant.getPermissions()),
+            "updated user role supplies its new permissions");
         users.delete(admin, other.getId());
         check(users.findAll(admin).size() == 4, "unused user can be deleted");
         QuizSession session = new QuizSession(10);

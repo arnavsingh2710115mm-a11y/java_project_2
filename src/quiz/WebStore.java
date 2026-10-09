@@ -11,7 +11,10 @@ public final class WebStore {
             for(String sql:Files.readString(Path.of("database/web-schema.sql")).split(";"))if(!sql.isBlank())s.execute(sql);
         }
     }
-    public static Map<String,Object> user(User u){return Map.of("id",u.getId(),"name",u.getName(),"email",u.getEmail(),"role",u.getRole());}
+    public static Map<String,Object> user(User u){
+        // u is a User reference; Java calls the actual role's overridden method.
+        return Map.of("id",u.getId(),"name",u.getName(),"email",u.getEmail(),"role",u.getRole(),"permissions",u.getPermissions());
+    }
     public static User findUser(Connection c,int id) throws SQLException {
         try(PreparedStatement p=c.prepareStatement("SELECT * FROM users WHERE id=?")){
             p.setInt(1,id);try(ResultSet r=p.executeQuery()){
@@ -39,7 +42,7 @@ public final class WebStore {
             q.questions.add(new Question(Json.string(item,"text"),text,Json.number(item,"correctAnswer"),Json.string(item,"explanation")));
         }return q;
     }
-    public static synchronized Map<String,Object> start(User user,int quizId) throws SQLException {
+    public static synchronized Map<String,Object> start(User user,int quizId) throws SQLException, QuizNotFoundException {
         if(!user.getRole().equals("Participant"))throw new IllegalArgumentException("Log in as a participant to attempt a quiz.");
         Quiz q=new QuizDAO().load(user,quizId);if(q.questions.isEmpty())throw new IllegalArgumentException("This quiz has no questions.");
         String id=null;

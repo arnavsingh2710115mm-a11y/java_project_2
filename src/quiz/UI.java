@@ -11,7 +11,11 @@ public class UI {
     public static JButton button(String text, Action action) {
         JButton button = new JButton(text);
         button.addActionListener(event -> {
-            try { action.run(); } catch (Exception e) { error(button, e); }
+            try { action.run(); }
+            catch (QuizNotFoundException e) {
+                JOptionPane.showMessageDialog(button, e.getMessage(), "Quiz not found", JOptionPane.WARNING_MESSAGE);
+            }
+            catch (Exception e) { error(button, e); }
         });
         return button;
     }

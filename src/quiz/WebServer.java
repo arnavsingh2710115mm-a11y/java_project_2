@@ -124,6 +124,7 @@ public final class WebServer {
             }
             throw new HttpError(404,"This page or action was not found.");
         }catch(HttpError e){json(x,e.code,Map.of("error",e.getMessage()));}
+        catch(QuizNotFoundException e){json(x,404,Map.of("error",e.getMessage()));}
         catch(IllegalArgumentException e){json(x,400,Map.of("error",Objects.toString(e.getMessage(),"Invalid request.")));}
         catch(SQLException e){String state=Objects.toString(e.getSQLState(),"");String message=state.equals("23505")?"That email or record already exists.":state.startsWith("23")?"This record has linked quizzes or results and cannot be deleted.":"The database is temporarily unavailable. Please try again.";json(x,state.startsWith("23")?409:503,Map.of("error",message));System.err.println("Database error state: "+state);}
         catch(Exception e){System.err.println("Request failed: "+e.getClass().getSimpleName());json(x,500,Map.of("error","The request could not be completed. Please try again."));}
